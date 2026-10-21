@@ -1,0 +1,92 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <!-- The earbud can hand off to the official Claude app instead. -->
+  <queries>
+    <package android:name="com.anthropic.claude" />
+  </queries>
+
+  <application>
+    <!-- Default digital assistant: the earbud long press (Bluetooth voice recognition) lands here. -->
+    <service
+      android:name="expo.modules.voiceassistant.AssistInteractionService"
+      android:permission="android.permission.BIND_VOICE_INTERACTION"
+      android:exported="true">
+      <meta-data
+        android:name="android.voice_interaction"
+        android:resource="@xml/assistant_service" />
+      <intent-filter>
+        <action android:name="android.service.voice.VoiceInteractionService" />
+      </intent-filter>
+    </service>
+
+    <service
+      android:name="expo.modules.voiceassistant.AssistSessionService"
+      android:permission="android.permission.BIND_VOICE_INTERACTION"
+      android:exported="true" />
+
+    <!-- Android requires a recognition service for an assistant app; we do STT ourselves. -->
+    <service
+      android:name="expo.modules.voiceassistant.StubRecognitionService"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.speech.RecognitionService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.speech"
+        android:resource="@xml/recognition_service" />
+    </service>
+
+    <!-- Some phones/headsets fire intents instead of starting the assistant session. -->
+    <activity
+      android:name="expo.modules.voiceassistant.AssistTrampolineActivity"
+      android:exported="true"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:showWhenLocked="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.ASSIST" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VOICE_COMMAND" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <!-- Headset button long press goes through MediaSessionService, which sends these. -->
+      <intent-filter>
+        <action android:name="android.speech.action.WEB_SEARCH" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.speech.action.VOICE_SEARCH_HANDS_FREE" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+    </activity>
+
+    <!-- Taps Claude's voice button after the earbud hands off to the Claude app. -->
+    <service
+      android:name="expo.modules.voiceassistant.ClaudeVoiceTapService"
+      android:label="Voice Claude earbud tap"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+      android:exported="false">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/voice_tap_service" />
+    </service>
+
+    <!-- Keeps the mic alive while a conversation runs with the screen off. -->
+    <service
+      android:name="expo.modules.voiceassistant.ConversationService"
+      android:exported="false"
+      android:foregroundServiceType="microphone" />
+  </application>
+</manifest>

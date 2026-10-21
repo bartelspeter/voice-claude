@@ -4,19 +4,28 @@
   "main": "index.ts",
   "dependencies": {
     "expo": "~58.0.16",
+    "expo-audio": "~58.0.9",
+    "expo-build-properties": "~58.0.11",
+    "expo-dev-client": "~58.0.14",
+    "expo-secure-store": "~58.0.2",
+    "expo-speech": "~58.0.3",
     "expo-status-bar": "~58.0.3",
     "react": "19.3.0",
     "react-native": "0.88.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.137.0",
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "expo lint"
   },
   "private": true
 }
