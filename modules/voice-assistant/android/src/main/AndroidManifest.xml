@@ -37,7 +37,7 @@
         android:resource="@xml/recognition_service" />
     </service>
 
-    <!-- Some phones/headsets fire these intents instead of starting the assistant session. -->
+    <!-- Some phones/headsets fire intents instead of starting the assistant session. -->
     <activity
       android:name="expo.modules.voiceassistant.AssistTrampolineActivity"
       android:exported="true"
@@ -51,6 +51,15 @@
       </intent-filter>
       <intent-filter>
         <action android:name="android.intent.action.VOICE_COMMAND" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <!-- Headset button long press goes through MediaSessionService, which sends these. -->
+      <intent-filter>
+        <action android:name="android.speech.action.WEB_SEARCH" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.speech.action.VOICE_SEARCH_HANDS_FREE" />
         <category android:name="android.intent.category.DEFAULT" />
       </intent-filter>
     </activity>
