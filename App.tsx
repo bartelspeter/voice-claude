@@ -47,7 +47,6 @@ export default function App() {
   const [partial, setPartial] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState('');
-  const [isDefaultAssistant, setIsDefaultAssistant] = useState(true);
 
   const conversation = useRef<Conversation | null>(null);
   const { stream } = useAudioStream({
@@ -111,13 +110,6 @@ export default function App() {
     return () => sub.remove();
   }, [settings, trigger]);
 
-  useEffect(() => {
-    const check = () => setIsDefaultAssistant(VoiceAssistant.isDefaultAssistant());
-    check();
-    const sub = AppState.addEventListener('change', (next) => next === 'active' && check());
-    return () => sub.remove();
-  }, []);
-
   if (!settings) return null;
 
   if (editing) {
@@ -133,20 +125,26 @@ export default function App() {
     );
   }
 
+  // The earbud reaches the app through Bluetooth VOICE_COMMAND, so the digital assistant role doesn't matter.
+  if (settings.earbudTarget === 'claude-app') {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <Text style={styles.status}>Ready</Text>
+        <Text style={styles.partial}>Long-press your earbud to start Claude voice mode.</Text>
+        <VoiceTapStatus />
+        <View style={styles.transcript} />
+        <Pressable onPress={() => setEditing(true)}>
+          <Text style={styles.link}>Settings</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      {!isDefaultAssistant && (
-        <Pressable style={styles.banner} onPress={() => VoiceAssistant.openAssistantSettings()}>
-          <Text style={styles.bannerText}>
-            Set Voice Claude as your digital assistant app so the earbud long press opens it. Tap to open settings.
-          </Text>
-        </Pressable>
-      )}
       <Text style={styles.status}>{STATE_LABELS[state]}</Text>
-      {settings.earbudTarget === 'claude-app' && (
-        <Text style={styles.partial}>Earbud long press opens the Claude app (change in Settings).</Text>
-      )}
       {!!partial && state === 'listening' && <Text style={styles.partial}>{partial}</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
       <ScrollView style={styles.transcript} contentContainerStyle={{ gap: 12 }}>
@@ -194,7 +192,19 @@ function SettingsScreen({ initial, onSave }: { initial: Settings; onSave(setting
           />
         </View>
       )}
-      {usesClaudeApp && <VoiceTapStatus />}
+      {usesClaudeApp ? <VoiceTapStatus /> : <ApiKeyFields draft={draft} setDraft={setDraft} />}
+      <View style={{ flex: 1 }} />
+      <Pressable style={[styles.button, styles.talk, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={() => onSave(draft)}>
+        <Text style={styles.buttonText}>Save</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/** Settings that only Voice Claude's own API-key conversations use. */
+function ApiKeyFields({ draft, setDraft }: { draft: Settings; setDraft(settings: Settings): void }) {
+  return (
+    <>
       <Text style={styles.label}>Anthropic API key</Text>
       <TextInput
         style={styles.input}
@@ -218,10 +228,7 @@ function SettingsScreen({ initial, onSave }: { initial: Settings; onSave(setting
         <Text style={styles.label}>Use earbud microphone</Text>
         <Switch value={draft.useEarbudMic} onValueChange={(useEarbudMic) => setDraft({ ...draft, useEarbudMic })} />
       </View>
-      <Pressable style={[styles.button, styles.talk, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={() => onSave(draft)}>
-        <Text style={styles.buttonText}>Save</Text>
-      </Pressable>
-    </View>
+    </>
   );
 }
 
