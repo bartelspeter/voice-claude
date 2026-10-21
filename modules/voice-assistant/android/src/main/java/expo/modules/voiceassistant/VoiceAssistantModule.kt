@@ -36,6 +36,19 @@ class VoiceAssistantModule : Module() {
       AssistTrigger.consume()
     }
 
+    // "voice-claude" (this app, API key) or "claude-app" (the official Claude app).
+    Function("getEarbudTarget") {
+      EarbudTarget.get(context)
+    }
+
+    Function("setEarbudTarget") { target: String ->
+      EarbudTarget.set(context, target)
+    }
+
+    Function("isClaudeAppInstalled") {
+      EarbudTarget.isClaudeAppInstalled(context)
+    }
+
     Function("isDefaultAssistant") {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)

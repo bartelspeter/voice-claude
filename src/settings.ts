@@ -1,9 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 
+import VoiceAssistant, { EarbudTarget } from '../modules/voice-assistant';
+
 export type Settings = {
   anthropicKey: string;
   deepgramKey: string;
   useEarbudMic: boolean;
+  /** Stored natively so the earbud trigger can read it before JS starts. */
+  earbudTarget: EarbudTarget;
 };
 
 const KEYS = {
@@ -22,10 +26,12 @@ export async function loadSettings(): Promise<Settings> {
     anthropicKey: anthropicKey ?? '',
     deepgramKey: deepgramKey ?? '',
     useEarbudMic: useEarbudMic !== 'false',
+    earbudTarget: VoiceAssistant.getEarbudTarget(),
   };
 }
 
 export async function saveSettings(settings: Settings) {
+  VoiceAssistant.setEarbudTarget(settings.earbudTarget);
   await Promise.all([
     SecureStore.setItemAsync(KEYS.anthropicKey, settings.anthropicKey.trim()),
     SecureStore.setItemAsync(KEYS.deepgramKey, settings.deepgramKey.trim()),

@@ -12,6 +12,7 @@ object AssistTrigger {
   @Volatile var listener: (() -> Unit)? = null
 
   fun fire(context: Context, launch: (Intent) -> Unit) {
+    if (EarbudTarget.openClaudeAppIfTarget(context, launch)) return
     pending = true
     listener?.invoke()
     context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { intent ->

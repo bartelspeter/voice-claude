@@ -60,7 +60,7 @@ export default function App() {
   useEffect(() => {
     loadSettings().then((loaded) => {
       setSettings(loaded);
-      setEditing(!loaded.anthropicKey || !loaded.deepgramKey);
+      setEditing(loaded.earbudTarget === 'voice-claude' && (!loaded.anthropicKey || !loaded.deepgramKey));
     });
     requestRecordingPermissionsAsync();
     setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldPlayInBackground: true });
@@ -144,6 +144,9 @@ export default function App() {
         </Pressable>
       )}
       <Text style={styles.status}>{STATE_LABELS[state]}</Text>
+      {settings.earbudTarget === 'claude-app' && (
+        <Text style={styles.partial}>Earbud long press opens the Claude app (change in Settings).</Text>
+      )}
       {!!partial && state === 'listening' && <Text style={styles.partial}>{partial}</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
       <ScrollView style={styles.transcript} contentContainerStyle={{ gap: 12 }}>
@@ -172,11 +175,25 @@ export default function App() {
 
 function SettingsScreen({ initial, onSave }: { initial: Settings; onSave(settings: Settings): void }) {
   const [draft, setDraft] = useState(initial);
-  const canSave = !!draft.anthropicKey.trim() && !!draft.deepgramKey.trim();
+  const claudeAppInstalled = VoiceAssistant.isClaudeAppInstalled();
+  const usesClaudeApp = draft.earbudTarget === 'claude-app';
+  const canSave = usesClaudeApp || (!!draft.anthropicKey.trim() && !!draft.deepgramKey.trim());
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       <Text style={styles.status}>Settings</Text>
+      {claudeAppInstalled && (
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Earbud opens the Claude app</Text>
+            <Text style={styles.hint}>Uses your Claude subscription and chat history. API keys are only needed for Voice Claude's own conversations.</Text>
+          </View>
+          <Switch
+            value={usesClaudeApp}
+            onValueChange={(on) => setDraft({ ...draft, earbudTarget: on ? 'claude-app' : 'voice-claude' })}
+          />
+        </View>
+      )}
       <Text style={styles.label}>Anthropic API key</Text>
       <TextInput
         style={styles.input}
@@ -223,6 +240,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#faf9f5', fontSize: 20, fontWeight: '600' },
   link: { color: '#b0aea5', textAlign: 'center', paddingTop: 8 },
   label: { color: '#faf9f5', fontSize: 16 },
+  hint: { color: '#b0aea5', fontSize: 13, paddingTop: 2, paddingRight: 12 },
   input: { backgroundColor: '#30302e', color: '#faf9f5', borderRadius: 10, padding: 12, fontSize: 16 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
 });

@@ -6,6 +6,11 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+  <!-- The earbud can hand off to the official Claude app instead. -->
+  <queries>
+    <package android:name="com.anthropic.claude" />
+  </queries>
+
   <application>
     <!-- Default digital assistant: the earbud long press (Bluetooth voice recognition) lands here. -->
     <service
