@@ -23,6 +23,8 @@ class ClaudeVoiceTapService : AccessibilityService() {
   private val handler = Handler(Looper.getMainLooper())
   private var newChatTapped = false
   private var backPresses = 0
+  private var voiceTaps = 0
+  private var labelsLogged = false
   private var lastTapAt = 0L
 
   override fun onServiceConnected() {
@@ -44,6 +46,8 @@ class ClaudeVoiceTapService : AccessibilityService() {
   private fun start() {
     newChatTapped = false
     backPresses = 0
+    voiceTaps = 0
+    labelsLogged = false
     lastTapAt = 0L
     poll()
   }
@@ -60,17 +64,28 @@ class ClaudeVoiceTapService : AccessibilityService() {
     if (SystemClock.elapsedRealtime() - lastTapAt < SETTLE_MS) return
     val root = rootInActiveWindow ?: return
     if (root.packageName != CLAUDE_PACKAGE) return
+    if (!labelsLogged) {
+      labelsLogged = true
+      Log.i(TAG, "Claude labels on screen: ${labelsOnScreen(root)}")
+    }
 
-    if (findByLabel(root, VOICE_ACTIVE_LABELS) != null) {
+    // Visibility is ignored here: mid-animation the voice controls can report as hidden,
+    // and pressing back then would end the voice chat.
+    if (findByLabel(root, VOICE_ACTIVE_LABELS, visibleOnly = false) != null) {
       Log.i(TAG, "Voice mode is on")
       disarm()
-      if (lockAfterwards) handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) }, LOCK_DELAY_MS)
+      if (lockAfterwards) {
+        handler.postDelayed({
+          Log.i(TAG, "Locking the screen")
+          performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+        }, LOCK_DELAY_MS)
+      }
       return
     }
 
     if (!newChatTapped) {
       findByLabel(root, NEW_CHAT_LABELS)?.let {
-        Log.i(TAG, "Tapping new chat")
+        Log.i(TAG, "Tapping new chat (${labelOf(it)})")
         newChatTapped = true
         tap(it)
         return
@@ -78,8 +93,15 @@ class ClaudeVoiceTapService : AccessibilityService() {
     }
 
     findByLabel(root, VOICE_BUTTON_LABELS)?.let {
-      Log.i(TAG, "Tapping voice mode")
-      tap(it)
+      if (voiceTaps >= MAX_VOICE_TAPS) {
+        Log.w(TAG, "Voice button (${labelOf(it)}) doesn't respond, giving up. Labels on screen: ${labelsOnScreen(root)}")
+        disarm()
+        return
+      }
+      voiceTaps++
+      // If a click action didn't start voice mode, a real tap on the screen usually does.
+      Log.i(TAG, "Tapping voice mode (${labelOf(it)}), attempt $voiceTaps")
+      tap(it, gesture = voiceTaps > 1)
       return
     }
 
@@ -95,11 +117,11 @@ class ClaudeVoiceTapService : AccessibilityService() {
     }
   }
 
-  private fun tap(node: AccessibilityNodeInfo) {
+  private fun tap(node: AccessibilityNodeInfo, gesture: Boolean = false) {
     lastTapAt = SystemClock.elapsedRealtime()
     var target: AccessibilityNodeInfo? = node
     while (target != null && !target.isClickable) target = target.parent
-    if (target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) return
+    if (!gesture && target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) return
     // Some Compose nodes ignore ACTION_CLICK; fall back to a real tap on the centre.
     val bounds = Rect().also(node::getBoundsInScreen)
     val path = Path().apply { moveTo(bounds.exactCenterX(), bounds.exactCenterY()) }
@@ -107,16 +129,18 @@ class ClaudeVoiceTapService : AccessibilityService() {
   }
 
   /** First node whose content description or text matches one of [labels] (case-insensitive, whole label). */
-  private fun findByLabel(root: AccessibilityNodeInfo, labels: List<Regex>): AccessibilityNodeInfo? {
+  private fun findByLabel(root: AccessibilityNodeInfo, labels: List<Regex>, visibleOnly: Boolean = true): AccessibilityNodeInfo? {
     val queue = ArrayDeque<AccessibilityNodeInfo>().apply { add(root) }
     while (queue.isNotEmpty()) {
       val node = queue.removeFirst()
-      val label = (node.contentDescription ?: node.text)?.toString()?.trim()
-      if (label != null && node.isVisibleToUser && labels.any { it.matches(label) }) return node
+      val label = labelOf(node)
+      if (label != null && (node.isVisibleToUser || !visibleOnly) && labels.any { it.matches(label) }) return node
       for (i in 0 until node.childCount) node.getChild(i)?.let(queue::add)
     }
     return null
   }
+
+  private fun labelOf(node: AccessibilityNodeInfo) = (node.contentDescription ?: node.text)?.toString()?.trim()
 
   /** Every label on screen, for fixing the patterns below when Claude's UI changes. */
   private fun labelsOnScreen(root: AccessibilityNodeInfo): List<String> {
@@ -138,6 +162,7 @@ class ClaudeVoiceTapService : AccessibilityService() {
     private const val SETTLE_MS = 900L
     private const val LOCK_DELAY_MS = 1_500L
     private const val MAX_BACK_PRESSES = 4
+    private const val MAX_VOICE_TAPS = 4
 
     private fun labels(vararg patterns: String) = patterns.map { Regex(it, RegexOption.IGNORE_CASE) }
 
