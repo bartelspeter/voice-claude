@@ -14,6 +14,9 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   getEarbudTarget(): EarbudTarget;
   setEarbudTarget(target: EarbudTarget): void;
   isClaudeAppInstalled(): boolean;
+  /** Whether the accessibility service that taps Claude's voice button is switched on. */
+  isVoiceTapEnabled(): boolean;
+  openAccessibilitySettings(): void;
   /** Whether this app holds the Android default digital assistant role. */
   isDefaultAssistant(): boolean;
   /** Opens the system screen where the digital assistant app is chosen. */

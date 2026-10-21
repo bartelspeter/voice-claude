@@ -194,6 +194,7 @@ function SettingsScreen({ initial, onSave }: { initial: Settings; onSave(setting
           />
         </View>
       )}
+      {usesClaudeApp && <VoiceTapStatus />}
       <Text style={styles.label}>Anthropic API key</Text>
       <TextInput
         style={styles.input}
@@ -221,6 +222,23 @@ function SettingsScreen({ initial, onSave }: { initial: Settings; onSave(setting
         <Text style={styles.buttonText}>Save</Text>
       </Pressable>
     </View>
+  );
+}
+
+/** Shows whether the accessibility service is on; it's what starts voice mode without touching the phone. */
+function VoiceTapStatus() {
+  const [enabled, setEnabled] = useState(VoiceAssistant.isVoiceTapEnabled());
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => next === 'active' && setEnabled(VoiceAssistant.isVoiceTapEnabled()));
+    return () => sub.remove();
+  }, []);
+  if (enabled) return <Text style={styles.hint}>Voice mode starts automatically, then the screen locks again.</Text>;
+  return (
+    <Pressable style={styles.banner} onPress={() => VoiceAssistant.openAccessibilitySettings()}>
+      <Text style={styles.bannerText}>
+        To start voice mode without touching the phone, turn on Accessibility › Installed apps › Voice Claude earbud tap. Tap to open settings.
+      </Text>
+    </Pressable>
   );
 }
 

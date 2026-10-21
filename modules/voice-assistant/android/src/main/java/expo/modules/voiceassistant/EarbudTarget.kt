@@ -37,6 +37,7 @@ object EarbudTarget {
     if (get(context) != CLAUDE_APP) return false
     val intent = claudeAppIntent(context) ?: return false
     Log.i("VoiceClaude", "Handing earbud trigger to the Claude app")
+    ClaudeVoiceTapService.arm()
     launch(intent)
     return true
   }

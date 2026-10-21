@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="voice_tap_service_description">When your earbud opens the Claude app, Voice Claude starts a new voice chat for you and locks the screen again. It only acts inside the Claude app, right after an earbud long press.</string>
+</resources>

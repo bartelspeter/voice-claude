@@ -49,6 +49,15 @@ class VoiceAssistantModule : Module() {
       EarbudTarget.isClaudeAppInstalled(context)
     }
 
+    // The accessibility service that taps Claude's voice button for a pocket-only start.
+    Function("isVoiceTapEnabled") {
+      ClaudeVoiceTapService.isEnabled(context)
+    }
+
+    Function("openAccessibilitySettings") {
+      context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     Function("isDefaultAssistant") {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
