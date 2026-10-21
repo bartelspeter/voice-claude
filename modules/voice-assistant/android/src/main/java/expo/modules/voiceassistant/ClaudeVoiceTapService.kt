@@ -168,7 +168,7 @@ class ClaudeVoiceTapService : AccessibilityService() {
 
     // Labels seen in Claude for Android 1.261016.51.
     private val VOICE_ACTIVE_LABELS = labels("Mute microphone", "Unmute microphone")
-    private val NEW_CHAT_LABELS = labels("New chat")
+    private val NEW_CHAT_LABELS = labels("New session", "New chat")
     private val VOICE_BUTTON_LABELS = labels("(Start )?voice mode", "Use voice mode", "Voice")
 
     @Volatile private var instance: ClaudeVoiceTapService? = null
