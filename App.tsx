@@ -232,13 +232,44 @@ function ApiKeyFields({ draft, setDraft }: { draft: Settings; setDraft(settings:
   );
 }
 
-/** Shows whether the accessibility service is on; it's what starts voice mode without touching the phone. */
+/**
+ * Walk mode = the accessibility service that starts voice mode is on. Banking apps such as
+ * KBank refuse to run while it is, so it can be switched off here, from the Quick Settings
+ * tile, or from the app icon's long-press shortcuts.
+ */
 function VoiceTapStatus() {
   const [enabled, setEnabled] = useState(VoiceAssistant.isVoiceTapEnabled());
+  const [canToggle, setCanToggle] = useState(VoiceAssistant.canToggleWalkMode());
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (next) => next === 'active' && setEnabled(VoiceAssistant.isVoiceTapEnabled()));
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') return;
+      setEnabled(VoiceAssistant.isVoiceTapEnabled());
+      setCanToggle(VoiceAssistant.canToggleWalkMode());
+    });
     return () => sub.remove();
   }, []);
+
+  if (canToggle) {
+    return (
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Walk mode</Text>
+          <Text style={styles.hint}>
+            {enabled
+              ? 'On: the earbud starts Claude voice mode and locks the screen again. Turn off before using banking apps.'
+              : 'Off: banking apps work. Turn on before a walk. Also in Quick Settings and on the app icon.'}
+          </Text>
+        </View>
+        <Switch
+          value={enabled}
+          onValueChange={(on) => {
+            VoiceAssistant.setWalkMode(on);
+            setEnabled(VoiceAssistant.isVoiceTapEnabled());
+          }}
+        />
+      </View>
+    );
+  }
   if (enabled) return <Text style={styles.hint}>Voice mode starts automatically, then the screen locks again.</Text>;
   return (
     <Pressable style={styles.banner} onPress={() => VoiceAssistant.openAccessibilitySettings()}>
