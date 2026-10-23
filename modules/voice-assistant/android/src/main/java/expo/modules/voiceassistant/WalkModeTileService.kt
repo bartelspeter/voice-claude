@@ -12,6 +12,10 @@ class WalkModeTileService : TileService() {
   override fun onStartListening() = refresh()
 
   override fun onClick() {
+    if (!WalkMode.isOn(this) && !WalkMode.hasConsent(this)) {
+      packageManager.getLaunchIntentForPackage(packageName)?.let { collapseAndStart(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+      return
+    }
     if (!WalkMode.canToggle(this)) {
       openAccessibilitySettings()
       return
@@ -21,9 +25,11 @@ class WalkModeTileService : TileService() {
   }
 
   // Tiles must collapse the shade to open an activity.
+  private fun openAccessibilitySettings() =
+    collapseAndStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+
   @Suppress("DEPRECATION")
-  private fun openAccessibilitySettings() {
-    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+  private fun collapseAndStart(intent: Intent) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
       startActivityAndCollapse(PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE))
     } else {

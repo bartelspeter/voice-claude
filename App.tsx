@@ -250,6 +250,8 @@ function VoiceTapStatus() {
   }, []);
 
   const turnOn = () => {
+    // Recorded natively so the Quick Settings tile and icon shortcuts honour it too.
+    VoiceAssistant.setAccessibilityConsent(true);
     if (canToggle) {
       VoiceAssistant.setWalkMode(true);
       setEnabled(VoiceAssistant.isVoiceTapEnabled());

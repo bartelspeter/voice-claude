@@ -24,13 +24,35 @@ import android.util.Log
 object WalkMode {
   private const val TAG = "VoiceClaude"
 
+  private const val PREFS = "voice-assistant"
+  private const val CONSENT_KEY = "accessibility-consent"
+
   fun isOn(context: Context): Boolean = ClaudeVoiceTapService.isEnabled(context)
+
+  /** Whether the user accepted the in-app accessibility disclosure (required by Play before enabling). */
+  fun hasConsent(context: Context): Boolean =
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(CONSENT_KEY, false)
+
+  fun setConsent(context: Context, accepted: Boolean) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(CONSENT_KEY, accepted).apply()
+  }
+
+  /** Opens Voice Claude so the disclosure can be shown before walk mode is turned on. */
+  fun openAppForConsent(context: Context) {
+    context.packageManager.getLaunchIntentForPackage(context.packageName)
+      ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      ?.let(context::startActivity)
+  }
 
   fun canToggle(context: Context): Boolean =
     context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
 
   /** Returns false (and opens the accessibility settings) if the app can't flip it itself. */
   fun set(context: Context, on: Boolean): Boolean {
+    if (on && !hasConsent(context)) {
+      openAppForConsent(context)
+      return false
+    }
     if (!canToggle(context)) {
       context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
       return false

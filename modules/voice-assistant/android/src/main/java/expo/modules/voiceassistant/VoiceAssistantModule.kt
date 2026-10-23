@@ -60,6 +60,14 @@ class VoiceAssistantModule : Module() {
       WalkMode.canToggle(context)
     }
 
+    Function("hasAccessibilityConsent") {
+      WalkMode.hasConsent(context)
+    }
+
+    Function("setAccessibilityConsent") { accepted: Boolean ->
+      WalkMode.setConsent(context, accepted)
+    }
+
     Function("setWalkMode") { on: Boolean ->
       WalkMode.set(context, on)
     }
