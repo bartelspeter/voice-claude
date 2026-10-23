@@ -25,6 +25,7 @@ class VoiceAssistantModule : Module() {
 
     OnCreate {
       AssistTrigger.listener = { sendEvent("onAssistTrigger", emptyMap<String, Any>()) }
+      runCatching { WalkMode.publishShortcuts(context) }
     }
 
     OnDestroy {
@@ -52,6 +53,23 @@ class VoiceAssistantModule : Module() {
     // The accessibility service that taps Claude's voice button for a pocket-only start.
     Function("isVoiceTapEnabled") {
       ClaudeVoiceTapService.isEnabled(context)
+    }
+
+    // Walk mode switches the voice tap service on/off (banking apps block it while it's on).
+    Function("canToggleWalkMode") {
+      WalkMode.canToggle(context)
+    }
+
+    Function("hasAccessibilityConsent") {
+      WalkMode.hasConsent(context)
+    }
+
+    Function("setAccessibilityConsent") { accepted: Boolean ->
+      WalkMode.setConsent(context, accepted)
+    }
+
+    Function("setWalkMode") { on: Boolean ->
+      WalkMode.set(context, on)
     }
 
     Function("openAccessibilitySettings") {

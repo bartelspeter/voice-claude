@@ -17,6 +17,13 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   /** Whether the accessibility service that taps Claude's voice button is switched on. */
   isVoiceTapEnabled(): boolean;
   openAccessibilitySettings(): void;
+  /** True once WRITE_SECURE_SETTINGS has been granted over adb, so walk mode can flip the service itself. */
+  canToggleWalkMode(): boolean;
+  /** Whether the user accepted the accessibility disclosure; walk mode can't be turned on without it. */
+  hasAccessibilityConsent(): boolean;
+  setAccessibilityConsent(accepted: boolean): void;
+  /** Turns the voice tap service on or off. Returns false (and opens accessibility settings) without the grant. */
+  setWalkMode(on: boolean): boolean;
   /** Whether this app holds the Android default digital assistant role. */
   isDefaultAssistant(): boolean;
   /** Opens the system screen where the digital assistant app is chosen. */

@@ -43,3 +43,38 @@ Then on the phone:
 - The earbud long press reaches the assistant session, not just the Settings page (that's what happened with the official Claude app).
 - Earbud mic over SCO actually beats the phone mic in street noise. You can turn it off in Settings.
 - Behavior on the lock screen and with the screen off.
+
+## Walk mode and banking apps
+
+Thai banking apps (KBank and others) refuse to run while a sideloaded app has an accessibility service switched on. **Walk mode** is that service: turn it off before banking, back on before a walk.
+
+- Switch on Voice Claude's main screen, the **Walk mode** Quick Settings tile (add it by editing the Quick Settings panel), or long-press the app icon for **Walk mode on / off**.
+- For the app to flip the setting itself, Android needs a one-time grant from a computer (redo it after reinstalling the app):
+
+  ```
+  adb shell pm grant com.bartelspeter.voiceclaude android.permission.WRITE_SECURE_SETTINGS
+  ```
+
+  Without it, the switches open the Accessibility settings screen instead.
+
+## Release builds (EAS + Google Play)
+
+`eas.json` has three profiles:
+
+| Profile | What it builds |
+| --- | --- |
+| `development` | Dev client APK that loads JS from Metro (what we've been sideloading). |
+| `preview` | Standalone release APK with the JS bundle inside. No dev server needed. |
+| `production` | App bundle for Google Play. `eas submit` sends it to the **internal testing** track. |
+
+First-time setup (on your computer, logged in to your own accounts):
+
+```
+npx eas-cli@latest login
+npx eas-cli@latest init                      # links the project to your Expo account
+npx eas-cli@latest build -p android --profile production
+```
+
+Google Play only accepts the very first upload from the Play Console itself: create the app, then upload that first `.aab` to **Testing › Internal testing** by hand. After that, `npx eas-cli@latest submit -p android --profile production` uploads new builds, using a Play service-account key saved as `google-play-service-account.json` (gitignored).
+
+Because Play re-signs the app, uninstall the sideloaded build before installing from Play. Then repeat the walk-mode `adb` grant and switch the accessibility service on again.

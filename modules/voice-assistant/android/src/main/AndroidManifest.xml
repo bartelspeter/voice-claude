@@ -1,10 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.RECORD_AUDIO" />
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Granted once over adb so walk mode can switch the voice tap service on and off. -->
+  <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
   <!-- The earbud can hand off to the official Claude app instead. -->
   <queries>
@@ -88,5 +91,25 @@
       android:name="expo.modules.voiceassistant.ConversationService"
       android:exported="false"
       android:foregroundServiceType="microphone" />
+
+    <!-- Walk mode: turn the voice tap service off for banking apps, on for walks. -->
+    <service
+      android:name="expo.modules.voiceassistant.WalkModeTileService"
+      android:exported="true"
+      android:icon="@android:drawable/ic_btn_speak_now"
+      android:label="Walk mode"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+      <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+    </service>
+
+    <activity
+      android:name="expo.modules.voiceassistant.WalkModeToggleActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:theme="@android:style/Theme.NoDisplay" />
   </application>
 </manifest>
