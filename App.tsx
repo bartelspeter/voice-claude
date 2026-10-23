@@ -249,41 +249,75 @@ function VoiceTapStatus() {
     return () => sub.remove();
   }, []);
 
+  const turnOn = () => {
+    if (canToggle) {
+      VoiceAssistant.setWalkMode(true);
+      setEnabled(VoiceAssistant.isVoiceTapEnabled());
+    } else {
+      VoiceAssistant.openAccessibilitySettings();
+    }
+  };
+
+  if (!enabled) return <AccessibilityDisclosure onAgree={turnOn} canToggle={canToggle} />;
+
   if (canToggle) {
     return (
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Walk mode</Text>
           <Text style={styles.hint}>
-            {enabled
-              ? 'On: the earbud starts Claude voice mode and locks the screen again. Turn off before using banking apps.'
-              : 'Off: banking apps work. Turn on before a walk. Also in Quick Settings and on the app icon.'}
+            On: the earbud starts Claude voice mode and locks the screen again. Turn off before using banking apps. Also in
+            Quick Settings and on the app icon.
           </Text>
         </View>
         <Switch
           value={enabled}
-          onValueChange={(on) => {
-            VoiceAssistant.setWalkMode(on);
+          onValueChange={() => {
+            VoiceAssistant.setWalkMode(false);
             setEnabled(VoiceAssistant.isVoiceTapEnabled());
           }}
         />
       </View>
     );
   }
-  if (enabled) return <Text style={styles.hint}>Voice mode starts automatically, then the screen locks again.</Text>;
+  return <Text style={styles.hint}>Voice mode starts automatically, then the screen locks again.</Text>;
+}
+
+/**
+ * Prominent disclosure for the AccessibilityServices API (Google Play policy). Shown before the
+ * user is sent to Accessibility settings, or before Walk mode is switched on.
+ */
+function AccessibilityDisclosure({ onAgree, canToggle }: { onAgree: () => void; canToggle: boolean }) {
   return (
-    <Pressable style={styles.banner} onPress={() => VoiceAssistant.openAccessibilitySettings()}>
+    <View style={styles.banner}>
+      <Text style={styles.bannerTitle}>Voice Claude uses the Accessibility service</Text>
       <Text style={styles.bannerText}>
-        To start voice mode without touching the phone, turn on Accessibility › Installed apps › Voice Claude earbud tap. Tap to open settings.
+        When you press the voice button on your Bluetooth headset, Voice Claude opens the Claude app and taps "New session"
+        and "Voice Mode" for you, so a voice chat starts without touching the phone. The screen locks again afterwards.
       </Text>
-    </Pressable>
+      <Text style={styles.bannerText}>
+        The service only acts inside the Claude app, and only for 20 seconds after a headset press. It does not read,
+        collect or share any screen content or personal data.
+      </Text>
+      <Text style={styles.bannerText}>
+        {canToggle
+          ? 'Walk mode is off, so banking apps work. Turn it on before a walk.'
+          : 'After you agree, Android Settings opens. Enable "Voice Claude earbud tap" under Installed apps.'}
+      </Text>
+      <Pressable style={styles.agreeButton} onPress={onAgree}>
+        <Text style={styles.agreeText}>{canToggle ? 'Agree and turn on Walk mode' : 'Agree and open settings'}</Text>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#141413', paddingHorizontal: 20, paddingTop: 64, paddingBottom: 32, gap: 12 },
-  banner: { backgroundColor: '#3a2a12', borderRadius: 12, padding: 12 },
+  banner: { backgroundColor: '#3a2a12', borderRadius: 12, padding: 14, gap: 8 },
+  bannerTitle: { color: '#faf9f5', fontSize: 16, fontWeight: '600' },
   bannerText: { color: '#f5d9a8', fontSize: 14 },
+  agreeButton: { backgroundColor: '#d97757', borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  agreeText: { color: '#faf9f5', fontSize: 15, fontWeight: '600' },
   status: { color: '#faf9f5', fontSize: 28, fontWeight: '600' },
   partial: { color: '#b0aea5', fontSize: 18, fontStyle: 'italic' },
   error: { color: '#ff8a7a', fontSize: 14 },
