@@ -38,6 +38,12 @@
           }
         }
       ]
-    ]
+    ],
+    "owner": "peterlarsson7",
+    "extra": {
+      "eas": {
+        "projectId": "32a13bb4-d474-4910-9ed5-50f4edf3e16a"
+      }
+    }
   }
 }
