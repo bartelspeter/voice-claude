@@ -12,6 +12,8 @@ object AssistTrigger {
   @Volatile var listener: (() -> Unit)? = null
 
   fun fire(context: Context, launch: (Intent) -> Unit) {
+    // A press means the user is starting fresh, online or not.
+    SessionResume.onNewChat("earbud press")
     if (EarbudTarget.openClaudeAppIfTarget(context, launch)) return
     pending = true
     listener?.invoke()

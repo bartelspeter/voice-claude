@@ -3,6 +3,7 @@
     "name": "Voice Claude",
     "slug": "voice-claude",
     "version": "1.0.0",
+    "scheme": "voiceclaude",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

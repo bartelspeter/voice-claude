@@ -5,12 +5,17 @@ export class DeepgramListener {
   onPartial?: (text: string) => void;
   onUtterance?: (text: string) => void;
   onError?: (message: string) => void;
+  /** The socket closed without stop() being called, typically because the connection dropped. */
+  onClose?: () => void;
 
   private ws?: WebSocket;
   private finals: string[] = [];
   private queued: ArrayBuffer[] = [];
 
-  constructor(private apiKey: string, private language = 'en') {}
+  constructor(
+    private apiKey: string,
+    private language = 'en',
+  ) {}
 
   start(sampleRate: number) {
     this.stop();
@@ -38,6 +43,11 @@ export class DeepgramListener {
     };
     ws.onmessage = (event) => this.handleMessage(String(event.data));
     ws.onerror = () => this.onError?.('Speech recognition connection failed');
+    ws.onclose = () => {
+      if (this.ws !== ws) return;
+      this.ws = undefined;
+      this.onClose?.();
+    };
     this.ws = ws;
   }
 
@@ -55,6 +65,7 @@ export class DeepgramListener {
     if (!ws) return;
     ws.onmessage = null;
     ws.onerror = null;
+    ws.onclose = null;
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'CloseStream' }));
     ws.close();
   }

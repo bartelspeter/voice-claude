@@ -7,9 +7,11 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.util.concurrent.Executors
 
 class VoiceAssistantModule : Module() {
   private val context: Context
@@ -18,18 +20,75 @@ class VoiceAssistantModule : Module() {
   private val audioManager: AudioManager
     get() = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+  private val networkListener: (Boolean) -> Unit = { online -> sendEvent("onNetworkChange", mapOf("online" to online)) }
+
+  // The speed probe blocks for up to 8 s; keep it off the module queue.
+  private val probeExecutor = Executors.newSingleThreadExecutor { Thread(it, "VoiceClaude-js-probe") }
+
   override fun definition() = ModuleDefinition {
     Name("VoiceAssistant")
 
-    Events("onAssistTrigger")
+    Events("onAssistTrigger", "onNetworkChange")
 
     OnCreate {
       AssistTrigger.listener = { sendEvent("onAssistTrigger", emptyMap<String, Any>()) }
+      NetworkWatcher.addListener(networkListener)
       runCatching { WalkMode.publishShortcuts(context) }
     }
 
     OnDestroy {
       AssistTrigger.listener = null
+      NetworkWatcher.removeListener(networkListener)
+      NetworkWatcher.stop(WATCHER_OWNER)
+      // A new module instance makes its own executor on every JS reload; don't leak this one's thread.
+      probeExecutor.shutdown()
+    }
+
+    // Keep the watcher alive while JS listens (even with walk mode off) and report the current state once.
+    OnStartObserving("onNetworkChange") {
+      NetworkWatcher.start(context, WATCHER_OWNER)
+      sendEvent("onNetworkChange", mapOf("online" to NetworkWatcher.isOnline(context)))
+    }
+
+    OnStopObserving("onNetworkChange") {
+      NetworkWatcher.stop(WATCHER_OWNER)
+    }
+
+    // Validated internet right now (live watcher state, or a one-off check when it isn't running).
+    Function("isOnline") {
+      NetworkWatcher.isOnline(context)
+    }
+
+    // Is the link good enough for a voice chat? Resolves ok=false on failure, never rejects.
+    AsyncFunction("probeNetwork") { promise: Promise ->
+      probeExecutor.execute {
+        val result = runCatching { SpeedProbe.run() }
+          .getOrElse { SpeedProbe.Result(false, -1, 0.0, 0.0) }
+        promise.resolve(result.toMap())
+      }
+    }
+
+    // "back", "gaveUp", "pip" or "note".
+    Function("playTone") { kind: String ->
+      Tones.play(context, kind)
+    }
+
+    Function("requestAudioFocus") {
+      HeldAudioFocus.request(context)
+    }
+
+    Function("abandonAudioFocus") {
+      HeldAudioFocus.abandon(context)
+    }
+
+    // Opens a new Claude chat with this text as the opening message, then taps voice mode.
+    Function("sendToClaudeApp") { text: String ->
+      EarbudTarget.sendText(context, text)
+    }
+
+    // A voice chat died with the signal and will be reopened once the link is good again.
+    Function("isResumePending") {
+      SessionResume.isPending
     }
 
     // True if the app was opened by the assistant since the last call.
@@ -125,5 +184,9 @@ class VoiceAssistantModule : Module() {
         true
       }
     }
+  }
+
+  private companion object {
+    const val WATCHER_OWNER = "js"
   }
 }
