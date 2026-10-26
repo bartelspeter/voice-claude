@@ -300,9 +300,9 @@ note "(Quick Settings → Screen recorder, sound: Media) instead and pull the fi
 step "Before recording: Settings → earbud opens the Claude app OFF (Voice Claude's own conversation), save."
 pause "Ready? Press Enter to start recording."
 record_start "microphone-foreground-service"
-step "1. Lock the phone. Long-press the earbud and ask a question."
-step "2. Wake the screen (don't unlock yet) so the lock screen shows the 'Claude is listening' notification."
-step "3. Unlock: the main screen shows the transcript while the answer is spoken. Say 'that's all'."
+step "1. Lock the phone. Long-press the earbud and ask a question; the screen stays off while it answers."
+step "2. Press the power button once (don't unlock): Voice Claude shows its transcript over the lock screen."
+step "3. Pull down the shade to show the 'Claude is listening' notification, then say 'that's all' and watch it end."
 pause "Finished? Press Enter to stop recording."
 record_stop "microphone-foreground-service"
 }

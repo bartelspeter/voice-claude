@@ -45,3 +45,6 @@ google-play-service-account.json
 
 # Local native module build output
 modules/voice-assistant/android/build/
+
+# Play declaration videos are kept locally (25 MB); upload them from store/videos/
+store/videos/

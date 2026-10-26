@@ -13,12 +13,13 @@ Done in the repo:
 - [x] In-app prominent disclosure for the accessibility service (commits 3c0a290 and 9c37d49). Text is quoted in the declaration section below.
 - [x] Declaration answers for accessibility, foreground service and data safety (below).
 
-Needs the phone (A54), can't be done from the repo:
+Captured on the A54 on 26 Oct 2026 with `store/record.sh` (re-run `./store/record.sh <stage>` to redo one):
 
-- [ ] At least 2 phone screenshots, 16:9 or 9:16, min 320 px, max 3840 px: `adb exec-out screencap -p > shot.png`. Good shots: the main screen mid-conversation (transcript visible) and the Walk mode disclosure.
-- [ ] Accessibility declaration video: screen record (`adb shell screenrecord /sdcard/a11y.mp4`) showing the disclosure, tapping Agree, enabling "Voice Claude earbud tap" in Accessibility settings, then an earbud press opening the Claude app and voice mode.
-- [ ] Foreground service declaration video: screen locked, earbud press, the "Voice Claude" ongoing notification on the lock screen, spoken answer audible.
+- [x] Phone screenshots: `store/screenshots/01-walk-mode-disclosure.png`, `store/screenshots/02-conversation.png`.
+- [x] Accessibility declaration video: `store/videos/accessibility-service.mp4` (local only, gitignored).
+- [x] Foreground service declaration video: `store/videos/microphone-foreground-service.mp4` (local only, gitignored; no audio track, adb screenrecord cannot capture it).
 - [ ] Decide whether to give reviewers test API keys under App access › Instructions (see below).
+- [ ] Upload everything in the Play Console and submit the declarations.
 
 ## Store listing
 
@@ -45,7 +46,7 @@ Not affiliated with Anthropic.
 **Contact e-mail:** peter@bartelsinternational.com
 **Privacy policy URL:** https://github.com/bartelspeter/voice-claude/blob/main/PRIVACY.md
 
-**Graphics:** `store/icon-512.png` (app icon, 32-bit PNG with alpha), `store/feature-graphic.png` (1024x500). Screenshots: see Status.
+**Graphics:** `store/icon-512.png` (app icon, 32-bit PNG with alpha), `store/feature-graphic.png` (1024x500), screenshots in `store/screenshots/`.
 
 ## App content declarations
 
