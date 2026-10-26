@@ -57,7 +57,8 @@ export class Conversation {
 
   constructor(private opts: Options) {
     opts.stt.onPartial = (text) => {
-      this.armIdleTimer();
+      // Deepgram keeps sending empty results through silence; only real speech postpones the timeout.
+      if (text) this.armIdleTimer();
       opts.onPartial(text);
     };
     opts.stt.onUtterance = (text) => void this.handleUtterance(text);
