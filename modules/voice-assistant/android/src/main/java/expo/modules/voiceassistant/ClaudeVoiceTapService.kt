@@ -54,7 +54,21 @@ class ClaudeVoiceTapService : AccessibilityService() {
   override fun onInterrupt() = Unit
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+    // Every Claude screen change is logged, armed or not, so new labels can be read off
+    // `adb logcat -s VoiceClaude` by browsing the Claude app with walk mode on.
+    if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) logScreen()
     if (isArmed()) step()
+  }
+
+  private var lastScreenLogged: List<String> = emptyList()
+
+  private fun logScreen() {
+    val root = rootInActiveWindow ?: return
+    if (root.packageName != CLAUDE_PACKAGE) return
+    val labels = labelsOnScreen(root)
+    if (labels == lastScreenLogged) return
+    lastScreenLogged = labels
+    Log.i(TAG, "Claude screen: $labels")
   }
 
   private fun start() {

@@ -312,10 +312,11 @@ stage "Optional: capture Claude app labels for the chat-search item"
 say "The deferred 'resume a chosen past chat by voice' item needs the content descriptions of Claude's chat list and search."
 if confirm "Capture them now (about a minute)?"; then
   adb logcat -c
-  adb logcat -s VoiceClaude > "store/claude-labels.log" &
+  adb logcat -s VoiceClaude | grep --line-buffered "Claude screen" > "store/claude-labels.log" &
   LOG_PID=$!
-  step "Walk mode ON, earbud mode ON. Long-press the earbud, then within 20 seconds open the Claude app's"
-  step "chat list (menu / back), tap the search field, type a word, and open a result."
+  step "Walk mode ON (the accessibility service logs every Claude screen). No earbud press needed."
+  step "Open the Claude app by hand: open the menu, the chat list, tap the search field, type a word, open a result,"
+  step "and open a chat from a few days ago. Each new screen is logged."
   pause "Done? Press Enter to stop logging."
   kill "$LOG_PID" 2>/dev/null || true
   printf '  %s✓ saved%s store/claude-labels.log (%s lines); paste the 'labels on screen' lines into the doc item\n' \
