@@ -22,7 +22,7 @@ Android only (built and tested for a Samsung Galaxy A54 with Anker Soundcore ear
 - **Earbud long press while idle:** start a new chat ("Yes?").
 - **Long press while Claude is talking or thinking:** interrupt and listen.
 - **Long press while it's listening:** start over with a new chat.
-- **Say "stop", "bye", or "that's all":** end. **Say "new chat":** start over.
+- **Say "stop", "bye", or "that's all"** (alone, or at the end of a sentence)**:** end. **Say "new chat":** start over.
 - **Long press while there is no signal:** start recording a note; press again to stop (3 min max).
 
 ## Signal loss (trail runs)
@@ -54,7 +54,8 @@ Then on the phone:
 1. Open Voice Claude and enter your Anthropic API key and Deepgram API key (stored in the Android keystore through `expo-secure-store`).
 2. Tap the banner, or go to **Settings > Apps > Choose default apps > Digital assistant app**, and pick **Voice Claude**.
 3. In the Soundcore app, make sure the right-earbud long press is set to **Voice assistant**.
-4. Long-press the earbud.
+4. Tap **Allow** on the "Let Voice Claude run with the screen off" banner and accept the battery-optimisation exemption. Android only lets the microphone service start from a pocket when the app is exempt; without it the app lights the screen for a few seconds instead.
+5. Long-press the earbud. The screen stays off and locked during the chat.
 
 ## Things to verify on the device
 

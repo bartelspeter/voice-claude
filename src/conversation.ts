@@ -35,7 +35,8 @@ const SCO_SETTLE_MS = 400;
 const SERVICE_RETRY_MS = 600;
 /** Signal drops in a row without a completed exchange before we stop blaming the network. */
 const MAX_OFFLINE_STREAK = 3;
-const END_COMMAND = /^(stop|goodbye|bye|that's all|thanks,? that's all)[.!]?$/i;
+// "stop" only on its own; the farewells also count at the end of a sentence ("ok thanks, that's all").
+const END_COMMAND = /^(stop|goodbye|bye|that's all|thanks,? that's all)[.!]?$|\b(goodbye|bye|that's all)[.!]?$/i;
 const NEW_CHAT_COMMAND = /^(new (chat|conversation)|start over)[.!]?$/i;
 
 /**
