@@ -2,6 +2,7 @@ import VoiceAssistant from '../modules/voice-assistant';
 import { ClaudeChat, ClaudeNetworkError } from './claude';
 import { NetworkMonitor, PendingWait } from './network';
 import { DeepgramListener } from './stt';
+import { clearBackgroundTimeout, setBackgroundTimeout, sleepInBackground, TimerHandle } from './timers';
 import { SentenceSpeaker } from './tts';
 
 export type ConversationState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'offline';
@@ -44,7 +45,7 @@ const NEW_CHAT_COMMAND = /^(new (chat|conversation)|start over)[.!]?$/i;
  */
 export class Conversation {
   state: ConversationState = 'idle';
-  private idleTimer?: ReturnType<typeof setTimeout>;
+  private idleTimer?: TimerHandle;
   private wait?: PendingWait;
   /** The user turn being answered; re-sent after a signal drop if no reply came through. */
   private unanswered?: string;
@@ -207,7 +208,7 @@ export class Conversation {
     this.setState('listening');
     this.opts.onPartial('');
     if (this.opts.useEarbudMic && VoiceAssistant.setBluetoothMic(true)) {
-      await new Promise((resolve) => setTimeout(resolve, SCO_SETTLE_MS));
+      await sleepInBackground(SCO_SETTLE_MS);
     }
     if (this.state !== 'listening') return;
     try {
@@ -222,16 +223,18 @@ export class Conversation {
   }
 
   private stopListening() {
-    clearTimeout(this.idleTimer);
+    clearBackgroundTimeout(this.idleTimer);
+    this.idleTimer = undefined;
     this.opts.stt.stop();
     this.opts.mic.stop();
     // Release the headset mic so the reply plays over normal (A2DP) audio.
     if (this.opts.useEarbudMic) VoiceAssistant.setBluetoothMic(false);
   }
 
+  /** Ends the chat after IDLE_TIMEOUT_MS of silence. Armed when listening starts; re-armed only by real speech. */
   private armIdleTimer() {
-    clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => this.end(), IDLE_TIMEOUT_MS);
+    clearBackgroundTimeout(this.idleTimer);
+    this.idleTimer = setBackgroundTimeout(() => this.end(), IDLE_TIMEOUT_MS);
   }
 
   private async handleUtterance(text: string) {

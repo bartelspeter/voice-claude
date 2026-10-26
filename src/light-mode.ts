@@ -2,6 +2,7 @@ import VoiceAssistant, { EarbudTarget } from '../modules/voice-assistant';
 import { Mic } from './conversation';
 import { SlackClient, SlackNetworkError, SlackThread, ThreadRef } from './slack';
 import { DeepgramListener } from './stt';
+import { clearBackgroundTimeout, setBackgroundTimeout, sleepInBackground, TimerHandle } from './timers';
 import { SentenceSpeaker } from './tts';
 
 export type LightReplyState = 'idle' | 'fetching' | 'reading' | 'listening' | 'posting' | 'done';
@@ -38,7 +39,7 @@ const ESCALATE_COMMAND = /^(open (this |it )?in claude|open with claude|escalate
 export class LightReply {
   state: LightReplyState = 'idle';
   private thread?: SlackThread;
-  private silenceTimer?: ReturnType<typeof setTimeout>;
+  private silenceTimer?: TimerHandle;
   private finished = false;
   private outcome: LightReplyOutcome = 'done';
 
@@ -104,7 +105,7 @@ export class LightReply {
     if (this.finished) return;
     this.setState('listening', 'Listening for your reply…');
     if (this.opts.useEarbudMic && VoiceAssistant.setBluetoothMic(true)) {
-      await new Promise((resolve) => setTimeout(resolve, SCO_SETTLE_MS));
+      await sleepInBackground(SCO_SETTLE_MS);
     }
     if (this.state !== 'listening') return;
     try {
@@ -119,15 +120,15 @@ export class LightReply {
   }
 
   private stopListening() {
-    clearTimeout(this.silenceTimer);
+    clearBackgroundTimeout(this.silenceTimer);
     this.opts.stt.stop();
     this.opts.mic.stop();
     if (this.opts.useEarbudMic) VoiceAssistant.setBluetoothMic(false);
   }
 
   private armSilenceTimer() {
-    clearTimeout(this.silenceTimer);
-    this.silenceTimer = setTimeout(() => {
+    clearBackgroundTimeout(this.silenceTimer);
+    this.silenceTimer = setBackgroundTimeout(() => {
       if (this.state !== 'listening') return;
       this.stopListening();
       this.finish('No reply posted.');
@@ -189,7 +190,7 @@ export class LightReply {
   private teardown() {
     if (this.finished) return;
     this.finished = true;
-    clearTimeout(this.silenceTimer);
+    clearBackgroundTimeout(this.silenceTimer);
     VoiceAssistant.abandonAudioFocus();
     VoiceAssistant.stopConversationService();
     VoiceAssistant.setShowWhenLocked(false);

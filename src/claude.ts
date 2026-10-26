@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { fetch } from 'expo/fetch';
 
 import VoiceAssistant from '../modules/voice-assistant';
+import { sleepInBackground } from './timers';
 
 // The Anthropic SDK's circular imports crash Metro's React Refresh at startup, so this
 // calls the Messages API directly. Only SDK types are imported (erased at build time).
@@ -87,7 +88,7 @@ export class ClaudeChat {
             if (isNetworkFailure(error) || !this.isOnline()) throw new ClaudeNetworkError(String(error));
             throw error;
           }
-          await sleep(RETRY_DELAYS_MS[attempt], controller.signal);
+          await sleepInBackground(RETRY_DELAYS_MS[attempt], controller.signal);
         }
       }
     } finally {
@@ -157,18 +158,6 @@ function isRetryable(error: unknown): boolean {
   if (error instanceof HttpError) return error.status >= 500; // includes 529 overloaded
   if (error instanceof ApiStreamError) return error.type === 'overloaded_error' || error.type === 'api_error';
   return true;
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(done, ms);
-    signal.addEventListener('abort', done, { once: true });
-    function done() {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', done);
-      resolve();
-    }
-  });
 }
 
 type StreamEvent =

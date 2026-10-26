@@ -187,7 +187,9 @@ finish() {
 TOTAL_STAGES=6
 
 # Where captures land (relative to the repo root; run this from there).
-APK_URL="https://expo.dev/artifacts/eas/0yNGScwuGAmToBc8Debebc37FUi8SqAnvl4y6pqkC5s.apk"
+# Latest finished EAS "preview" build (release APK); override with APK_URL=… if needed.
+APK_URL="${APK_URL:-$(npx eas-cli build:list -p android --profile preview --status finished --limit 1 --non-interactive --json 2>/dev/null \
+  | python3 -I -c 'import json,sys; b=json.load(sys.stdin); print((b[0].get("artifacts") or {}).get("buildUrl",""))')}"
 PACKAGE="com.bartelspeter.voiceclaude"
 SHOTS="store/screenshots"
 VIDEOS="store/videos"
@@ -246,7 +248,8 @@ if adb shell pm list packages 2>/dev/null | grep -q "^package:$PACKAGE$"; then
 fi
 if [[ "$INSTALLED" == false ]]; then
   APK=$(mktemp -d)/voice-claude-preview.apk
-  say "Downloading the preview APK from EAS (73 MB)…"
+  [[ -n "$APK_URL" ]] || { warn "no finished preview build found on EAS; run: npx eas-cli build -p android --profile preview"; exit 1; }
+  say "Downloading the latest preview APK from EAS (about 73 MB)…"
   curl -fL --progress-bar "$APK_URL" -o "$APK"
   step "Unlock the phone and keep it unlocked: Play Protect asks about the sideloaded app ('Don't send' is fine)."
   say "Installing…"

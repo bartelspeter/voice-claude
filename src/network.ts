@@ -1,4 +1,5 @@
 import VoiceAssistant from '../modules/voice-assistant';
+import { clearBackgroundInterval, clearBackgroundTimeout, setBackgroundInterval, setBackgroundTimeout } from './timers';
 
 /** How often a waiting caller re-probes the connection while the device says it is online. */
 export const PROBE_INTERVAL_MS = 30_000;
@@ -44,8 +45,8 @@ export class NetworkMonitor {
     const settle = (outcome: WaitOutcome) => {
       if (done) return;
       done = true;
-      clearTimeout(deadline);
-      clearInterval(ticker);
+      clearBackgroundTimeout(deadline);
+      clearBackgroundInterval(ticker);
       unsubscribe();
       finish(outcome);
     };
@@ -57,8 +58,8 @@ export class NetworkMonitor {
       if (ok) settle('usable');
     };
 
-    const deadline = setTimeout(() => settle('gaveUp'), giveUpMs);
-    const ticker = setInterval(() => void check(), intervalMs);
+    const deadline = setBackgroundTimeout(() => settle('gaveUp'), giveUpMs);
+    const ticker = setBackgroundInterval(() => void check(), intervalMs);
     const unsubscribe = this.onChange((online) => online && void check());
     void check();
     return { result, cancel: () => settle('cancelled') };

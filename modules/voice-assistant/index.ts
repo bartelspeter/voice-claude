@@ -23,6 +23,8 @@ type VoiceAssistantEvents = {
    * (walk mode on, or a JS subscriber), plus once with the current state on subscribe.
    */
   onNetworkChange: (payload: { online: boolean }) => void;
+  /** A timer armed with `startTimer` ran out (never sent for a cancelled or re-armed id). */
+  onTimer: (payload: { id: string }) => void;
 };
 
 declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
@@ -68,6 +70,16 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   abandonAudioFocus(): void;
   /** True while walk mode is waiting for signal to reopen a Claude voice chat that a drop ended. */
   isResumePending(): boolean;
+  /**
+   * Arms a timer on the Android main looper that fires `onTimer` with `id` after `delayMs`.
+   * Exists because React Native pauses every JS setTimeout/setInterval while the activity is
+   * paused (JavaTimerManager.onHostPause), and this app's conversations run from the lock screen
+   * with the activity behind the keyguard. Starting an id that is already armed restarts it.
+   * Use the wrappers in src/timers.ts rather than calling this directly.
+   */
+  startTimer(id: string, delayMs: number): void;
+  /** Disarms a timer from `startTimer`; a no-op for an unknown or already fired id. */
+  cancelTimer(id: string): void;
 }
 
 export default requireNativeModule<VoiceAssistantModule>('VoiceAssistant');

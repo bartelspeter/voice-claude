@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 
 import VoiceAssistant from '../modules/voice-assistant';
 import { NetworkMonitor, PendingWait } from './network';
+import { clearBackgroundTimeout, setBackgroundTimeout, sleepInBackground, TimerHandle } from './timers';
 
 /** A note stops by itself after this long. */
 export const MAX_NOTE_MS = 3 * 60_000;
@@ -43,8 +44,8 @@ export class NoteTaker {
   private recorder?: AudioRecorder;
   private starting = false;
   private stopping = false;
-  private stopTimer?: ReturnType<typeof setTimeout>;
-  private retryTimer?: ReturnType<typeof setTimeout>;
+  private stopTimer?: TimerHandle;
+  private retryTimer?: TimerHandle;
   private wait?: PendingWait;
   private flushing = false;
   /** Transcripts waiting for the app to come to the foreground (their files stay on disk). */
@@ -83,7 +84,7 @@ export class NoteTaker {
     this.unsubscribeNetwork();
     this.appState.remove();
     this.wait?.cancel();
-    clearTimeout(this.retryTimer);
+    clearBackgroundTimeout(this.retryTimer);
     if (this.recorder) void this.stop();
   }
 
@@ -96,13 +97,13 @@ export class NoteTaker {
       this.opts.beforeRecord?.();
       VoiceAssistant.requestAudioFocus();
       if (this.opts.useEarbudMic && VoiceAssistant.setBluetoothMic(true)) {
-        await new Promise((resolve) => setTimeout(resolve, SCO_SETTLE_MS));
+        await sleepInBackground(SCO_SETTLE_MS);
       }
       VoiceAssistant.playTone('note');
       await recorder.prepareToRecordAsync();
       recorder.record();
       this.recorder = recorder;
-      this.stopTimer = setTimeout(() => void this.stop(), MAX_NOTE_MS);
+      this.stopTimer = setBackgroundTimeout(() => void this.stop(), MAX_NOTE_MS);
     } catch (error) {
       recorder.release();
       this.releaseMic();
@@ -118,7 +119,7 @@ export class NoteTaker {
     if (!recorder) return;
     this.recorder = undefined;
     this.stopping = true;
-    clearTimeout(this.stopTimer);
+    clearBackgroundTimeout(this.stopTimer);
     try {
       await recorder.stop();
       if (recorder.uri) await new File(recorder.uri).move(new File(notesDirectory(), noteFileName()));
@@ -193,8 +194,8 @@ export class NoteTaker {
   }
 
   private retryLater() {
-    clearTimeout(this.retryTimer);
-    this.retryTimer = setTimeout(() => this.flushWhenUsable(), FLUSH_RETRY_MS);
+    clearBackgroundTimeout(this.retryTimer);
+    this.retryTimer = setBackgroundTimeout(() => this.flushWhenUsable(), FLUSH_RETRY_MS);
   }
 
   private async transcribe(file: File): Promise<string> {
