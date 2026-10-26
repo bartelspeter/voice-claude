@@ -33,10 +33,21 @@ class VoiceAssistantModule : Module() {
   private val timerHandler = Handler(Looper.getMainLooper())
   private val timers = HashMap<String, Runnable>()
 
+  // Text-to-speech lives here rather than in expo-speech because that module shuts its engine
+  // down with the activity and never rebinds, while this app keeps speaking from a foreground
+  // service after the activity is gone. Bound on first use; shut down only with the module.
+  private val speechDelegate = lazy {
+    Speech(context) { event, id -> sendEvent(event, mapOf("id" to id)) }
+  }
+  private val speech by speechDelegate
+
   override fun definition() = ModuleDefinition {
     Name("VoiceAssistant")
 
-    Events("onAssistTrigger", "onNetworkChange", "onTimer")
+    Events(
+      "onAssistTrigger", "onNetworkChange", "onTimer",
+      Speech.EVENT_START, Speech.EVENT_DONE, Speech.EVENT_STOPPED, Speech.EVENT_ERROR
+    )
 
     OnCreate {
       AssistTrigger.listener = { sendEvent("onAssistTrigger", emptyMap<String, Any>()) }
@@ -51,6 +62,22 @@ class VoiceAssistantModule : Module() {
       // A new module instance makes its own executor on every JS reload; don't leak this one's thread.
       probeExecutor.shutdown()
       cancelAllTimers()
+      // Not on activity destroy: conversations keep speaking from the service after that.
+      if (speechDelegate.isInitialized()) speech.shutdown()
+    }
+
+    // Queues `text` for speech as utterance `id`; `language` is a BCP 47 tag such as "en-US".
+    Function("speak") { id: String, text: String, language: String ->
+      speech.speak(id, text, language)
+    }
+
+    // Stops the current utterance and drops queued ones; each gets onSpeechStopped.
+    Function("stopSpeaking") {
+      speech.stop()
+    }
+
+    Function("isSpeaking") {
+      speechDelegate.isInitialized() && speech.isSpeaking()
     }
 
     // Arms (or re-arms) the timer `id`; it fires `onTimer` with that id after `delayMs`.

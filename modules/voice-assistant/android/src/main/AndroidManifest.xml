@@ -14,9 +14,13 @@
   <!-- Granted once over adb so walk mode can switch the voice tap service on and off. -->
   <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
-  <!-- The earbud can hand off to the official Claude app instead. -->
   <queries>
+    <!-- The earbud can hand off to the official Claude app instead. -->
     <package android:name="com.anthropic.claude" />
+    <!-- Lets Speech.kt find the text-to-speech engine (expo-speech used to declare this). -->
+    <intent>
+      <action android:name="android.intent.action.TTS_SERVICE" />
+    </intent>
   </queries>
 
   <application>

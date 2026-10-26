@@ -25,6 +25,14 @@ type VoiceAssistantEvents = {
   onNetworkChange: (payload: { online: boolean }) => void;
   /** A timer armed with `startTimer` ran out (never sent for a cancelled or re-armed id). */
   onTimer: (payload: { id: string }) => void;
+  /** The engine began playing the utterance queued with `speak`. */
+  onSpeechStart: (payload: { id: string }) => void;
+  /** The utterance played to the end. Exactly one of done/stopped/error is sent per id. */
+  onSpeechDone: (payload: { id: string }) => void;
+  /** `stopSpeaking` interrupted the utterance, or discarded it before it started. */
+  onSpeechStopped: (payload: { id: string }) => void;
+  /** The engine could not speak the utterance, even after being recreated once. */
+  onSpeechError: (payload: { id: string }) => void;
 };
 
 declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
@@ -80,6 +88,24 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   startTimer(id: string, delayMs: number): void;
   /** Disarms a timer from `startTimer`; a no-op for an unknown or already fired id. */
   cancelTimer(id: string): void;
+  /**
+   * Queues `text` for text-to-speech as utterance `id` (QUEUE_ADD, so calls play in order) and
+   * reports back through the `onSpeech*` events. `language` is a BCP 47 tag such as "en-US"; a
+   * language the engine lacks is still spoken in its default voice.
+   *
+   * TTS lives in this module instead of expo-speech because expo-speech shuts its engine down
+   * when the activity is destroyed and never rebinds it. This app keeps talking from a foreground
+   * service with the activity behind the keyguard or gone, and after that every expo-speech
+   * `speak` failed with "not bound to TTS engine" and sent no done/error event, so src/tts.ts
+   * waited forever. This engine is kept for the life of the module and recreated once if it
+   * fails to bind, dies or rejects an utterance. Use `SentenceSpeaker` in src/tts.ts rather
+   * than calling this directly.
+   */
+  speak(id: string, text: string, language: string): void;
+  /** Stops the current utterance and drops queued ones; each affected id gets `onSpeechStopped`. */
+  stopSpeaking(): void;
+  /** True while an utterance is playing or waiting for the engine. */
+  isSpeaking(): boolean;
 }
 
 export default requireNativeModule<VoiceAssistantModule>('VoiceAssistant');
