@@ -2,6 +2,7 @@ package expo.modules.voiceassistant
 
 import android.app.Activity
 import android.app.KeyguardManager
+import android.content.Context
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.Log
@@ -19,7 +20,7 @@ class AssistTrampolineActivity : Activity() {
     Log.i("VoiceClaude", if (resume) "Resume launch" else "Assist intent: ${intent?.action}")
 
     // A resume starts from the background with the screen off, so make sure it lights up.
-    if (resume) wakeScreen()
+    if (resume) wakeScreen(this, "VoiceClaude:resume", RESUME_WAKE_LOCK_MS)
 
     // The Claude app can't show over the lock screen, so unlock first. Without a PIN prompt
     // (e.g. Extend Unlock trusting the earbuds) this happens silently with the phone in a pocket.
@@ -51,22 +52,25 @@ class AssistTrampolineActivity : Activity() {
     finish()
   }
 
-  // The bright/wake-up flags are deprecated but still the only way to light the screen
-  // from a background-started activity when turnScreenOn alone doesn't.
-  @Suppress("DEPRECATION")
-  private fun wakeScreen() {
-    runCatching {
-      getSystemService(PowerManager::class.java)
-        .newWakeLock(
-          PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-          "VoiceClaude:resume"
-        )
-        .acquire(WAKE_LOCK_MS)
-    }.onFailure { Log.w("VoiceClaude", "Could not acquire the wake lock", it) }
-  }
-
   companion object {
     const val EXTRA_RESUME = "resume"
-    private const val WAKE_LOCK_MS = 10_000L
+    private const val RESUME_WAKE_LOCK_MS = 10_000L
+
+    /**
+     * Lights the screen for `durationMs`. The bright/wake-up flags are deprecated but still the
+     * only way to light the screen from the background when turnScreenOn alone doesn't. Also
+     * used by the module's `turnScreenOn` when a pocket start can't get the mic service going.
+     */
+    @Suppress("DEPRECATION")
+    fun wakeScreen(context: Context, tag: String, durationMs: Long) {
+      runCatching {
+        context.getSystemService(PowerManager::class.java)
+          .newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+            tag
+          )
+          .acquire(durationMs)
+      }.onFailure { Log.w("VoiceClaude", "Could not acquire the wake lock", it) }
+    }
   }
 }

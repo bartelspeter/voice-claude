@@ -300,6 +300,7 @@ export default function App() {
       <SlackLine status={lightStatus} queued={queued} />
       {!!noteLine && <Text style={styles.partial}>{noteLine}</Text>}
       {!!error && <Text style={styles.error}>{error}</Text>}
+      <BatteryExemptionBanner />
       <ScrollView style={styles.transcript} contentContainerStyle={{ gap: 12 }}>
         {turns.map((turn, index) => (
           <Text key={index} style={turn.role === 'user' ? styles.user : styles.assistant}>
@@ -434,6 +435,36 @@ function SlackLine({ status, queued }: { status: string; queued: number }) {
   if (!status && queued === 0) return null;
   const parts = [status ? `Slack: ${status}` : 'Slack', queued > 0 ? `${queued} queued` : ''].filter(Boolean);
   return <Text style={styles.hint}>{parts.join(' · ')}</Text>;
+}
+
+/**
+ * Android 14+ only lets the microphone foreground service start from the background when the
+ * app is exempt from battery optimisation. Without the exemption a pocket start has to light
+ * the screen first (see Conversation.handleServiceFailure), so ask for it once.
+ */
+function BatteryExemptionBanner() {
+  const [exempt, setExempt] = useState(VoiceAssistant.isIgnoringBatteryOptimizations());
+  useEffect(() => {
+    // The system prompt is a separate activity; re-check when the user comes back from it.
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') setExempt(VoiceAssistant.isIgnoringBatteryOptimizations());
+    });
+    return () => sub.remove();
+  }, []);
+
+  if (exempt) return null;
+  return (
+    <View style={styles.banner}>
+      <Text style={styles.bannerTitle}>Let Voice Claude run with the screen off</Text>
+      <Text style={styles.bannerText}>
+        Android only lets the microphone start from a pocket when the app is exempt from battery optimisation. Tap to
+        allow it; the screen can then stay off and locked during a chat.
+      </Text>
+      <Pressable style={styles.agreeButton} onPress={() => VoiceAssistant.requestIgnoreBatteryOptimizations()}>
+        <Text style={styles.agreeText}>Allow</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 /**

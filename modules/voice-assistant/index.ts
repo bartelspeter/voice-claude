@@ -25,6 +25,13 @@ type VoiceAssistantEvents = {
   onNetworkChange: (payload: { online: boolean }) => void;
   /** A timer armed with `startTimer` ran out (never sent for a cancelled or re-armed id). */
   onTimer: (payload: { id: string }) => void;
+  /**
+   * `startConversationService` was refused by Android: the microphone foreground service may
+   * not start while the app is not visible (a pocket start with the screen off) unless the app
+   * is exempt from battery optimisation. The service has already stopped itself. `reason` is the
+   * exception class and message, for logging.
+   */
+  onConversationServiceFailed: (payload: { reason: string }) => void;
   /** The engine began playing the utterance queued with `speak`. */
   onSpeechStart: (payload: { id: string }) => void;
   /** The utterance played to the end. Exactly one of done/stopped/error is sent per id. */
@@ -58,8 +65,28 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   openAssistantSettings(): void;
   /** Lets the app appear over the lock screen (without waking or unlocking the phone). */
   setShowWhenLocked(show: boolean): void;
+  /**
+   * Lights the screen and shows the app over the lock screen (setShowWhenLocked + setTurnScreenOn
+   * plus a 5 s wake lock). `setShowWhenLocked` deliberately no longer does this, so a pocket chat
+   * keeps the screen off; this is the fallback for when Android then refuses the microphone
+   * service (see `onConversationServiceFailed`): once the app is visible the service may start.
+   */
+  turnScreenOn(): void;
+  /**
+   * Starts the microphone foreground service. Android 14+ refuses it while the app is not
+   * visible unless the app is exempt from battery optimisation; the refusal arrives as
+   * `onConversationServiceFailed` rather than a throw.
+   */
   startConversationService(): void;
   stopConversationService(): void;
+  /**
+   * Whether the app is on Android's power allowlist (Battery > Unrestricted). That is one of the
+   * documented exemptions that lets a foreground service start from the background, which a
+   * pocket assistant needs so the screen can stay off and locked during a chat.
+   */
+  isIgnoringBatteryOptimizations(): boolean;
+  /** Opens the system prompt that asks the user to exempt the app from battery optimisation. */
+  requestIgnoreBatteryOptimizations(): void;
   /** Routes recording to the Bluetooth headset mic. Returns false if no headset mic is available. */
   setBluetoothMic(enabled: boolean): boolean;
   /**

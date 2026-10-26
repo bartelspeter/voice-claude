@@ -31,6 +31,8 @@ type Options = {
 
 const IDLE_TIMEOUT_MS = 30_000;
 const SCO_SETTLE_MS = 400;
+/** Time for the lit screen to make the app visible before the mic service is started again. */
+const SERVICE_RETRY_MS = 600;
 /** Signal drops in a row without a completed exchange before we stop blaming the network. */
 const MAX_OFFLINE_STREAK = 3;
 const END_COMMAND = /^(stop|goodbye|bye|that's all|thanks,? that's all)[.!]?$/i;
@@ -54,7 +56,10 @@ export class Conversation {
   private requestsInFlight = 0;
   /** The network came back but `canResume` said no; `retryResume()` picks it up. */
   private resumeBlocked = false;
+  /** The mic service was refused once this session and retried with the screen on. */
+  private serviceRetried = false;
   private readonly unsubscribeNetwork: () => void;
+  private readonly serviceFailureSub: { remove(): void };
 
   constructor(private opts: Options) {
     opts.stt.onPartial = (text) => {
@@ -70,6 +75,9 @@ export class Conversation {
       // A reply that has fully arrived can finish playing; the next listen or send fails into offline by itself.
       if (this.state === 'speaking' && this.requestsInFlight === 0) return;
       this.goOffline('No signal');
+    });
+    this.serviceFailureSub = VoiceAssistant.addListener('onConversationServiceFailed', ({ reason }) => {
+      void this.handleServiceFailure(reason);
     });
   }
 
@@ -121,6 +129,7 @@ export class Conversation {
   dispose() {
     this.end(false);
     this.unsubscribeNetwork();
+    this.serviceFailureSub.remove();
   }
 
   onAudio(buffer: ArrayBuffer) {
@@ -180,11 +189,34 @@ export class Conversation {
   }
 
   private startSession() {
+    this.serviceRetried = false;
     VoiceAssistant.startConversationService();
     VoiceAssistant.setShowWhenLocked(true);
     VoiceAssistant.requestAudioFocus();
     this.opts.claude.reset();
     this.offlineStreak = 0;
+  }
+
+  /**
+   * Android 14+ refused the microphone foreground service because the app was not visible (a
+   * pocket start with the screen off) and is not exempt from battery optimisation. Light the
+   * screen once, which makes the app visible, and start the service again; a second refusal
+   * ends the chat and points the user at the exemption.
+   */
+  private async handleServiceFailure(reason: string) {
+    if (this.state === 'idle') return;
+    console.warn(`Conversation service refused: ${reason}`);
+    if (!this.serviceRetried) {
+      this.serviceRetried = true;
+      VoiceAssistant.turnScreenOn();
+      await sleepInBackground(SERVICE_RETRY_MS);
+      // Ended meanwhile? (TS keeps the narrowing from the check above across the await.)
+      if ((this.state as ConversationState) === 'idle') return;
+      VoiceAssistant.startConversationService();
+      return;
+    }
+    this.opts.onError('Microphone service could not start; allow Voice Claude to run unrestricted in Battery settings');
+    this.end(false);
   }
 
   /** Stops everything that is running without changing state or releasing the session. */

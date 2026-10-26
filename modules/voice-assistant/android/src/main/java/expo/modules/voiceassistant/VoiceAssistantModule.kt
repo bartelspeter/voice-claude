@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -45,18 +47,20 @@ class VoiceAssistantModule : Module() {
     Name("VoiceAssistant")
 
     Events(
-      "onAssistTrigger", "onNetworkChange", "onTimer",
+      "onAssistTrigger", "onNetworkChange", "onTimer", "onConversationServiceFailed",
       Speech.EVENT_START, Speech.EVENT_DONE, Speech.EVENT_STOPPED, Speech.EVENT_ERROR
     )
 
     OnCreate {
       AssistTrigger.listener = { sendEvent("onAssistTrigger", emptyMap<String, Any>()) }
+      ConversationService.onStartFailed = { reason -> sendEvent("onConversationServiceFailed", mapOf("reason" to reason)) }
       NetworkWatcher.addListener(networkListener)
       runCatching { WalkMode.publishShortcuts(context) }
     }
 
     OnDestroy {
       AssistTrigger.listener = null
+      ConversationService.onStartFailed = null
       NetworkWatcher.removeListener(networkListener)
       NetworkWatcher.stop(WATCHER_OWNER)
       // A new module instance makes its own executor on every JS reload; don't leak this one's thread.
@@ -200,8 +204,36 @@ class VoiceAssistantModule : Module() {
       activity.runOnUiThread { activity.setShowWhenLocked(show) }
     }
 
+    // Fails asynchronously with onConversationServiceFailed when Android refuses the mic service
+    // (app not visible and not exempt from battery optimisation).
     Function("startConversationService") {
       context.startForegroundService(Intent(context, ConversationService::class.java))
+    }
+
+    // Lights and shows the app over the lock screen right now: the fallback that makes a pocket
+    // start "visible" enough for Android 14+ to allow the microphone foreground service.
+    Function("turnScreenOn") {
+      val activity = appContext.currentActivity
+      if (activity != null) {
+        activity.runOnUiThread {
+          activity.setShowWhenLocked(true)
+          activity.setTurnScreenOn(true)
+        }
+        AssistTrampolineActivity.wakeScreen(context, "VoiceClaude:service", SCREEN_ON_WAKE_LOCK_MS)
+      }
+    }
+
+    // On the power allowlist? That is one of the documented exemptions for starting a foreground
+    // service from the background, which a pocket assistant needs.
+    Function("isIgnoringBatteryOptimizations") {
+      context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    Function("requestIgnoreBatteryOptimizations") {
+      val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+        .setData(Uri.parse("package:${context.packageName}"))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      context.startActivity(intent)
     }
 
     Function("stopConversationService") {
@@ -266,5 +298,6 @@ class VoiceAssistantModule : Module() {
 
   private companion object {
     const val WATCHER_OWNER = "js"
+    const val SCREEN_ON_WAKE_LOCK_MS = 5_000L
   }
 }

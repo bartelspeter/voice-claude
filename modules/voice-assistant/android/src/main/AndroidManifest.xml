@@ -11,6 +11,8 @@
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <!-- Lights the screen when a resume reopens the Claude app from the background. -->
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <!-- Lets the app ask to be exempt from battery optimisation, so the mic service may start from a pocket (screen off). -->
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
   <!-- Granted once over adb so walk mode can switch the voice tap service on and off. -->
   <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
