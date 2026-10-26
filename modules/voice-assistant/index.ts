@@ -56,7 +56,7 @@ declare class VoiceAssistantModule extends NativeModule<VoiceAssistantEvents> {
   isDefaultAssistant(): boolean;
   /** Opens the system screen where the digital assistant app is chosen. */
   openAssistantSettings(): void;
-  /** Lets the app appear over the lock screen and wake the screen. */
+  /** Lets the app appear over the lock screen (without waking or unlocking the phone). */
   setShowWhenLocked(show: boolean): void;
   startConversationService(): void;
   stopConversationService(): void;

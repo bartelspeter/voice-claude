@@ -195,10 +195,9 @@ class VoiceAssistantModule : Module() {
 
     Function("setShowWhenLocked") { show: Boolean ->
       val activity = appContext.currentActivity ?: return@Function
-      activity.runOnUiThread {
-        activity.setShowWhenLocked(show)
-        activity.setTurnScreenOn(show)
-      }
+      // Show over the keyguard without waking or unlocking: in a pocket the screen stays off,
+      // and on the lock screen the transcript is visible while the phone stays locked.
+      activity.runOnUiThread { activity.setShowWhenLocked(show) }
     }
 
     Function("startConversationService") {
