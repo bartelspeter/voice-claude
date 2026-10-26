@@ -13,6 +13,9 @@ Android only (built and tested for a Samsung Galaxy A54 with Anker Soundcore ear
 | `src/claude.ts` | Claude Messages API, streamed (`@anthropic-ai/sdk` + `expo/fetch`), with web search and a "spoken answers" system prompt. |
 | `src/tts.ts` | Speaks the reply sentence by sentence with Android's built-in TTS (`expo-speech`) while Claude is still writing. |
 | `src/conversation.ts` | Turn-taking: listen, think, speak, listen again. Ends after 30 s of silence. |
+| `src/network.ts` | Watches the native connectivity signal and runs the speed probe until the link is usable. |
+| `src/notes.ts` | Records voice notes while offline and hands the Deepgram transcript to a new chat once signal returns. |
+| `src/slack.ts`, `src/light-mode.ts` | Slack light-voice mode: reads an agent's thread aloud and posts your spoken reply. |
 
 ### Controls
 
@@ -20,6 +23,21 @@ Android only (built and tested for a Samsung Galaxy A54 with Anker Soundcore ear
 - **Long press while Claude is talking or thinking:** interrupt and listen.
 - **Long press while it's listening:** start over with a new chat.
 - **Say "stop", "bye", or "that's all":** end. **Say "new chat":** start over.
+- **Long press while there is no signal:** start recording a note; press again to stop (3 min max).
+
+## Signal loss (trail runs)
+
+Weak signal only drops words. A full drop used to end the session; now:
+
+- **Claude-app mode:** walk mode's accessibility service watches connectivity. If the link dies while a Claude voice chat is live, it waits for the link to come back, runs a small speed probe against Cloudflare (latency under 1 s, 150 kbps down, 50 kbps up, every 30 s), plays two rising beeps and reopens the same chat in the Claude app, tapping voice mode again. After 20 minutes it gives up with three falling beeps: take the phone out and start over. Meanwhile whatever you were listening to before resumes on its own (Android audio focus). With no chat pending, one short pip after an outage means a new session could be started now.
+- **Voice Claude mode:** the conversation parks in "No signal, waiting…" with its history intact and resumes the same chat ("Back.") once the probe passes; an unanswered question is re-sent. Claude requests retry three times with backoff.
+- **Offline notes:** while there is no signal the earbud press records a note to the phone instead (double beep at start and stop). When the link is usable again the notes are transcribed with Deepgram and opened as a fresh chat: "Notes I took while offline: …". In Claude-app mode the text is shared into the Claude app and voice mode is started.
+
+Thresholds and intervals live in `SpeedProbe.kt` and `src/network.ts`.
+
+## Slack light-voice mode
+
+Local Claude Code agents post questions to Slack threads with a link button `voiceclaude://thread/<channel>/<ts>`. Tapping it (also from the lock screen) makes Voice Claude read the thread aloud ("Alice: …", last five messages) and ask "Your reply?". Say your answer and it is posted to the thread; say **skip**, **repeat**, or **open this in Claude** to hand the thread to a full Claude session. Links that arrive mid-conversation are queued with a pip and read once the chat ends. Needs a Slack token (scopes `chat:write`, `channels:history`/`groups:history`/`im:history`, optionally `users:read` and `channels:read`) and the Deepgram key in Settings.
 
 ## Setup
 
@@ -75,6 +93,14 @@ npx eas-cli@latest init                      # links the project to your Expo ac
 npx eas-cli@latest build -p android --profile production
 ```
 
-Google Play only accepts the very first upload from the Play Console itself: create the app, then upload that first `.aab` to **Testing › Internal testing** by hand. After that, `npx eas-cli@latest submit -p android --profile production` uploads new builds, using a Play service-account key saved as `google-play-service-account.json` (gitignored).
+Then create the app in the [Play Console](https://play.google.com/console) (**Create app**, name "Voice Claude", package is taken from the first upload) and submit:
+
+```
+npx eas-cli@latest submit -p android --profile production --latest
+```
+
+EAS Submit can do the first upload itself. It uses a Play service-account key saved as `google-play-service-account.json` (gitignored); create one with [Expo's guide](https://github.com/expo/fyi/blob/main/creating-google-service-account.md) and invite its e-mail under **Users and permissions** in the Play Console. The release lands on **Testing › Internal testing**; add yourself as a tester there and install from the opt-in link.
+
+Before the app can leave internal testing, the Play Console dashboard tasks need finishing. Copy-paste text for them is in [`store/play-listing.md`](store/play-listing.md), and the privacy policy Play asks for (microphone apps need one) is [`PRIVACY.md`](PRIVACY.md), served from this public repo. Two declarations need a short screen recording: the **accessibility service** (walk mode) and the **microphone foreground service**.
 
 Because Play re-signs the app, uninstall the sideloaded build before installing from Play. Then repeat the walk-mode `adb` grant and switch the accessibility service on again.

@@ -42,3 +42,6 @@ yarn-error.*
 
 # Google Play upload key for EAS Submit (never commit)
 google-play-service-account.json
+
+# Local native module build output
+modules/voice-assistant/android/build/
