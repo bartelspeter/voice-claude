@@ -18,37 +18,68 @@ import android.view.accessibility.AccessibilityNodeInfo
  * so the phone can stay in a pocket. It only acts while armed by [arm], and only
  * inside the Claude app. Matching is by accessibility labels, so a Claude UI change
  * can break it; every step is logged under "VoiceClaude".
+ *
+ * While connected (walk mode on) it also hosts the [NetworkWatcher] and [SessionResume],
+ * which bring a voice chat back after a signal drop without another foreground service.
  */
 class ClaudeVoiceTapService : AccessibilityService() {
   private val handler = Handler(Looper.getMainLooper())
   private var newChatTapped = false
   private var backPresses = 0
   private var voiceTaps = 0
+  private var reconnectTaps = 0
+  private var reconnectCapLogged = false
   private var labelsLogged = false
   private var lastTapAt = 0L
+
+  // Per-instance owner name: a new instance can connect before the old one's onDestroy,
+  // so the old one must only release what it took itself.
+  private val watcherOwner = "$WATCHER_OWNER@${System.identityHashCode(this)}"
 
   override fun onServiceConnected() {
     instance = this
     Log.i(TAG, "Voice tap service connected")
+    NetworkWatcher.start(this, watcherOwner)
+    SessionResume.attach(this)
   }
 
   override fun onDestroy() {
+    // Always release this instance's share; SessionResume ignores a stale owner itself.
     if (instance === this) instance = null
+    SessionResume.detach(this)
+    NetworkWatcher.stop(watcherOwner)
     super.onDestroy()
   }
 
   override fun onInterrupt() = Unit
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+    // Every Claude screen change is logged, armed or not, so new labels can be read off
+    // `adb logcat -s VoiceClaude` by browsing the Claude app with walk mode on.
+    if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) logScreen()
     if (isArmed()) step()
+  }
+
+  private var lastScreenLogged: List<String> = emptyList()
+
+  private fun logScreen() {
+    val root = rootInActiveWindow ?: return
+    if (root.packageName != CLAUDE_PACKAGE) return
+    val labels = labelsOnScreen(root)
+    if (labels == lastScreenLogged) return
+    lastScreenLogged = labels
+    Log.i(TAG, "Claude screen: $labels")
   }
 
   private fun start() {
     newChatTapped = false
     backPresses = 0
     voiceTaps = 0
+    reconnectTaps = 0
+    reconnectCapLogged = false
     labelsLogged = false
     lastTapAt = 0L
+    Log.i(TAG, "Tap flow armed${if (resumeMode) " in resume mode (no new session)" else ""}")
     poll()
   }
 
@@ -73,6 +104,7 @@ class ClaudeVoiceTapService : AccessibilityService() {
     // and pressing back then would end the voice chat.
     if (findByLabel(root, VOICE_ACTIVE_LABELS, visibleOnly = false) != null) {
       Log.i(TAG, "Voice mode is on")
+      SessionResume.onVoiceModeOn()
       disarm()
       if (lockAfterwards) {
         handler.postDelayed({
@@ -83,7 +115,24 @@ class ClaudeVoiceTapService : AccessibilityService() {
       return
     }
 
-    if (!newChatTapped) {
+    // Resume mode keeps the current chat: skip "New session" and clear any reconnect prompt
+    // the dead voice session may have left behind. Tapped at most once: a "Retry" that stays
+    // (a failed message, say) would otherwise be re-sent every settle interval and the voice
+    // button never reached.
+    if (resumeMode) {
+      findByLabel(root, RECONNECT_LABELS)?.let {
+        if (reconnectTaps < MAX_RECONNECT_TAPS) {
+          reconnectTaps++
+          Log.i(TAG, "Tapping reconnect prompt (${labelOf(it)})")
+          tap(it)
+          return
+        }
+        if (!reconnectCapLogged) {
+          reconnectCapLogged = true
+          Log.w(TAG, "Reconnect prompt (${labelOf(it)}) still on screen after $MAX_RECONNECT_TAPS tap; ignoring it and looking for the voice button")
+        }
+      }
+    } else if (!newChatTapped) {
       findByLabel(root, NEW_CHAT_LABELS)?.let {
         Log.i(TAG, "Tapping new chat (${labelOf(it)})")
         newChatTapped = true
@@ -163,6 +212,7 @@ class ClaudeVoiceTapService : AccessibilityService() {
     private const val LOCK_DELAY_MS = 1_500L
     private const val MAX_BACK_PRESSES = 4
     private const val MAX_VOICE_TAPS = 4
+    private const val MAX_RECONNECT_TAPS = 1
 
     private fun labels(vararg patterns: String) = patterns.map { Regex(it, RegexOption.IGNORE_CASE) }
 
@@ -170,9 +220,14 @@ class ClaudeVoiceTapService : AccessibilityService() {
     private val VOICE_ACTIVE_LABELS = labels("Mute microphone", "Unmute microphone")
     private val NEW_CHAT_LABELS = labels("New session", "New chat")
     private val VOICE_BUTTON_LABELS = labels("(Start )?voice mode", "Use voice mode", "Voice")
+    // Guesses for whatever Claude shows after a voice session dies; harmless if never seen.
+    private val RECONNECT_LABELS = labels("Retry", "Try again", "Reconnect", "Resume")
+
+    private const val WATCHER_OWNER = "tap-service"
 
     @Volatile private var instance: ClaudeVoiceTapService? = null
     @Volatile private var armedUntil = 0L
+    @Volatile private var resumeMode = false
     @Volatile var lockAfterwards = true
 
     private fun isArmed() = SystemClock.elapsedRealtime() < armedUntil
@@ -181,9 +236,17 @@ class ClaudeVoiceTapService : AccessibilityService() {
       armedUntil = 0L
     }
 
-    /** Called right before the Claude app is opened by the earbud. */
-    fun arm() {
-      val service = instance ?: return
+    /**
+     * Called right before the Claude app is opened. [resume] keeps the chat already on
+     * screen (after a signal drop, or text handed over as the opening message) and only
+     * taps the voice button.
+     */
+    fun arm(resume: Boolean = false) {
+      val service = instance ?: run {
+        Log.w(TAG, "Voice tap service not running; Claude will open without the tap flow")
+        return
+      }
+      resumeMode = resume
       armedUntil = SystemClock.elapsedRealtime() + ARM_MS
       service.handler.post { service.start() }
     }
