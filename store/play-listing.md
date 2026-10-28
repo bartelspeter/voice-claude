@@ -8,8 +8,7 @@ Done in the repo:
 
 - [x] Store listing text (below).
 - [x] Privacy policy: [`PRIVACY.md`](../PRIVACY.md), public at the URL below (repo is public, link checked 25 Oct 2026).
-- [x] App icon 512x512 (`store/icon-512.png`, exported from `assets/icon.png`). It is still the Expo template chevron; replace `assets/icon.png` and re-export if you want a real one before the listing goes public.
-- [x] Feature graphic 1024x500 (`store/feature-graphic.png`).
+- [x] App icon 512x512 (`store/icon-512.png`) and feature graphic 1024x500 (`store/feature-graphic.png`), rendered from the brand sources in `assets/brand/` by `assets/brand/render.py`.
 - [x] In-app prominent disclosure for the accessibility service (commits 3c0a290 and 9c37d49). Text is quoted in the declaration section below.
 - [x] Declaration answers for accessibility, foreground service and data safety (below).
 

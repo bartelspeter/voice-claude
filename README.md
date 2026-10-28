@@ -45,9 +45,11 @@ You need a development build. Expo Go can't load the native module.
 
 ```bash
 npm install
-npx expo run:android          # phone plugged in with USB debugging, or:
+APP_VARIANT=development npx expo run:android   # phone plugged in with USB debugging, or:
 npx eas-cli@latest build --profile development --platform android
 ```
+
+`APP_VARIANT=development` (set automatically by the EAS `development` profile) builds the dev client as **Voice Claude (Dev)** under the package `com.bartelspeter.voiceclaude.dev`, so it installs next to the Play build instead of replacing it. Each app keeps its own keys, and only one of them can be the assistant app or have walk mode switched on at a time. A local build needs JDK 17 and the Android SDK (`ANDROID_HOME`); after switching variants run `npx expo prebuild --platform android --clean` with the same `APP_VARIANT` before `expo run:android`.
 
 Then on the phone:
 
@@ -74,7 +76,7 @@ Thai banking apps (KBank and others) refuse to run while a sideloaded app has an
   adb shell pm grant com.bartelspeter.voiceclaude android.permission.WRITE_SECURE_SETTINGS
   ```
 
-  Without it, the switches open the Accessibility settings screen instead.
+  (`com.bartelspeter.voiceclaude.dev` for the dev build.) Without it, the switches open the Accessibility settings screen instead.
 
 ## Release builds (EAS + Google Play)
 
